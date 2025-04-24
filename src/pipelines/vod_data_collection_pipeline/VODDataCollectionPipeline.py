@@ -41,11 +41,16 @@ class VODDataCollectionPipeline:
         self.video_processor = ChzzkVideoProcessor()
 
     def store_video_logs(self, streamer_idx: int):
-        """
-        store video logs to db not processed video
+        """Store video logs to database for unprocessed videos.
+
+        This method:
+        1. Gets list of video files from file system
+        2. Gets list of already stored video IDs from database
+        3. Processes only new videos (present in file system but not in database)
+        4. Stores processed video logs in bulk
 
         Args:
-            streamer_idx (int): streamer index
+            streamer_idx (int): Streamer index to process videos for
         """
         file_manager = FileManager(load_file_manager_config(), streamer_idx)
 
@@ -54,16 +59,17 @@ class VODDataCollectionPipeline:
             logger.info(f"No video data found for streamer {streamer_idx}")
             return
 
-        processed_video_ids = self.db_handler.get_existing_video_data_video_ids(streamer_idx)
+        stored_video_ids = self.db_handler.get_existing_video_data_video_ids(streamer_idx)
 
         video_logs = []
         for path in video_data_paths:
             video_log = self.video_processor.process(path, streamer_idx)
-            if video_log.video_id not in processed_video_ids:
+            if video_log.video_id not in stored_video_ids:
                 video_logs.append(video_log)
 
         if video_logs:
             self.db_handler.insert_video_data_bulk(streamer_idx, video_logs)
+            logger.info(f"Stored {len(video_logs)} new video logs for streamer {streamer_idx}")
 
     def _crawl_chat_data_for_video(
         self, video_id: int, file_manager: FileManager, base_sleep_time: float = 0.5
