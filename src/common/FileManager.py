@@ -97,3 +97,30 @@ class FileManager:
         except Exception as e:
             logger.error(f"Error getting existing video data paths: {e}")
             raise e
+
+    def get_existing_chat_data_paths(self) -> set[Path]:
+        """Get paths of all existing chat data files.
+
+        Returns:
+            set[Path]: Set of existing chat data file paths
+        """
+        try:
+            return set(self._paths.chat_data_dir.glob("*.jsonl"))
+        except Exception as e:
+            logger.error(f"Error getting existing chat data paths: {e}")
+            raise e
+
+    def get_existing_chat_data_video_ids(self) -> set[int]:
+        """Get video IDs from existing chat data files.
+
+        Returns:
+            set[int]: Set of video IDs that have chat data files
+        """
+        try:
+            return {
+                int(path.stem.split("_")[-1])  # Extract video_id from "chats_{video_id}.jsonl"
+                for path in self.get_existing_chat_data_paths()
+            }
+        except (ValueError, IndexError) as e:
+            logger.error(f"Error extracting video IDs from chat data paths: {e}")
+            raise ValueError("Invalid chat data file name format") from e
