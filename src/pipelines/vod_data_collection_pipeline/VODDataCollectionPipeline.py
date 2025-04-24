@@ -1,3 +1,6 @@
+import random
+import time
+
 from loguru import logger
 
 from src.common.ChzzkDBHandler import ChzzkDBHandler
@@ -62,12 +65,15 @@ class VODDataCollectionPipeline:
         if video_logs:
             self.db_handler.insert_video_data_bulk(streamer_idx, video_logs)
 
-    def _crawl_chat_data_for_video(self, video_id: int, file_manager: FileManager) -> bool:
+    def _crawl_chat_data_for_video(
+        self, video_id: int, file_manager: FileManager, base_sleep_time: float = 0.5
+    ) -> bool:
         """Crawl chat data for a single video.
 
         Args:
             video_id (int): The ID of the video to crawl
             file_manager (FileManager): File manager instance for saving data
+            base_sleep_time (float): Base sleep time between API calls in seconds. Defaults to 0.5.
 
         Returns:
             bool: True if crawling was successful, False otherwise
@@ -90,7 +96,7 @@ class VODDataCollectionPipeline:
                 video_chats, next_player_message_time = self.processor.parse_video_chats(data)
                 file_manager.append_chats_to_jsonl(video_chats, video_id)
                 retry_count = 0  # Reset retry count on success
-
+                time.sleep(base_sleep_time * random.uniform(0.5, 1.5))
             except Exception as e:
                 logger.error(f"❌ Error crawling chat data for video_id {video_id}: {e}")
                 return False
