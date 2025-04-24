@@ -107,7 +107,7 @@ class ChzzkDBHandler:
             columns = [desc[0] for desc in cur.description]
             return [dict(zip(columns, row)) for row in cur.fetchall()]
 
-    def insert_video_data_bulk(self, streamer_idx: int, video_data_list: list[VideoLog]):
+    def insert_video_data_bulk(self, video_data_list: list[VideoLog]):
         """Insert multiple video records into the database in a single transaction.
 
         This method efficiently inserts multiple video records by using bulk insert
@@ -126,14 +126,14 @@ class ChzzkDBHandler:
         VALUES (%(streamer_idx)s, %(video_id)s, %(category)s, %(created_at)s, %(video_url)s)
         """
 
-        insert_values = [{"streamer_idx": streamer_idx, **video.to_dict()} for video in video_data_list]
+        insert_values = [video.to_dict() for video in video_data_list]
         try:
             self._execute_query(query, insert_values, commit=True)
         except Exception as e:
             logger.error(f"Error inserting video data: {e}")
             raise e
 
-    def insert_chat_data_bulk(self, video_idx: int, chat_data_list: list[ChatLog]):
+    def insert_chat_data_bulk(self, chat_data_list: list[ChatLog]):
         """Insert multiple chat records into the database in a single transaction.
 
         This method efficiently inserts multiple chat records by using bulk insert
@@ -152,7 +152,7 @@ class ChzzkDBHandler:
         VALUES (%(video_idx)s, %(chat_text)s, %(chat_time)s, %(user_id_hash)s, %(pay_amount)s, %(os_type)s)
         """
 
-        insert_values = [{"video_idx": video_idx, **chat.to_dict()} for chat in chat_data_list]
+        insert_values = [chat.to_dict() for chat in chat_data_list]
 
         self._execute_query(query, insert_values, commit=True)
 
