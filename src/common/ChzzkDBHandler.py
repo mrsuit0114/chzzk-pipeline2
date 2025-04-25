@@ -156,26 +156,56 @@ class ChzzkDBHandler:
 
         self._execute_query(query, insert_values, commit=True)
 
-    def get_existing_video_data_video_ids(self, streamer_idx: int) -> set[int]:
-        """Retrieve a set of existing video IDs for a specific streamer.
-
-        This method queries the database to get all video IDs that have already been
-        recorded for a given streamer.
+    def get_video_ids(self, streamer_idx: int, has_chat_data: bool = False) -> set[int]:
+        """Get set of video IDs for a specific streamer.
 
         Args:
-            streamer_idx (int): The unique identifier of the streamer
+            streamer_idx (int): Index of the streamer to check
+            has_chat_data (bool): If True, only return video IDs that have associated chat data.
+                Defaults to False.
 
         Returns:
-            set[int]: A set of video IDs that already exist in the database
+            set[int]: Set of video IDs that match the criteria
 
         Raises:
             Exception: If the query fails
             RuntimeError: If database connection cannot be established
         """
-        query = """
-        SELECT video_id
-        FROM videos
-        WHERE streamer_idx = %(streamer_idx)s
-        """
+        if has_chat_data:
+            query = """
+            SELECT DISTINCT v.video_id
+            FROM videos v
+            INNER JOIN chats c ON v.video_idx = c.video_idx
+            WHERE v.streamer_idx = %(streamer_idx)s
+            """
+        else:
+            query = """
+            SELECT video_id
+            FROM videos
+            WHERE streamer_idx = %(streamer_idx)s
+            """
         result = self._select_query(query, params={"streamer_idx": streamer_idx})
         return {row["video_id"] for row in result}
+
+    def get_video_idx(self, video_id: int, streamer_idx: int) -> int:
+        """Get video index from database.
+
+        Args:
+            video_id (int): Unique identifier of the video
+            streamer_idx (int): Index of the streamer who owns the video
+
+        Returns:
+            int: The video index in the database
+
+        Raises:
+            ValueError: If the video is not found for the given streamer
+        """
+        query = """
+        SELECT video_idx
+        FROM videos
+        WHERE streamer_idx = %(streamer_idx)s AND video_id = %(video_id)s
+        """
+        result = self._select_query(query, params={"video_id": video_id, "streamer_idx": streamer_idx})
+        if not result:
+            raise ValueError(f"Video with id {video_id} not found for streamer {streamer_idx}. ")
+        return result[0]["video_idx"]

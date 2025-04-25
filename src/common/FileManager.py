@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Generator
 
 from loguru import logger
 
@@ -24,6 +24,16 @@ class FileManager:
         self._verify_and_create_pahts()
 
     def _verify_and_create_pahts(self):
+        """Verify and create necessary directories for file management.
+
+        This method:
+        1. Checks if each required directory exists
+        2. Creates missing directories with parent directories if needed
+        3. Logs the status of each directory
+
+        Raises:
+            Exception: If directory creation fails
+        """
         for path in self._paths.__dict__.values():
             path_obj = Path(path)
             if not path_obj.exists():
@@ -66,22 +76,32 @@ class FileManager:
             logger.error(f"Error appending chats to jsonl file: {e}")
             raise e
 
-    def load_chats_from_jsonl(self, video_id: int) -> list[dict[str, Any]]:
-        """load chats from jsonl file for video_id
+    def load_chats_from_jsonl_batch(
+        self, video_id: int, batch_size: int = 1000
+    ) -> Generator[list[dict[str, Any]], None, None]:
+        """Load chats from jsonl file in batches.
 
         Args:
             video_id (int): ID of the video to which the chats belong
+            batch_size (int): Number of chats to load in each batch. Defaults to 1000.
+
+        Yields:
+            list[dict[str, Any]]: Batch of video chats
 
         Raises:
             e: If there's an error reading the file
-
-        Returns:
-            list[dict[str, Any]]: VideoChatData.video_chats
         """
         file_path = self._get_chat_file_path(video_id)
         try:
             with open(file_path) as f:
-                return [json.loads(line) for line in f]
+                batch = []
+                for line in f:
+                    batch.append(json.loads(line))
+                    if len(batch) >= batch_size:
+                        yield batch
+                        batch = []
+                if batch:  # Yield remaining chats
+                    yield batch
         except Exception as e:
             logger.error(f"Error loading chats from jsonl file: {e}")
             raise e

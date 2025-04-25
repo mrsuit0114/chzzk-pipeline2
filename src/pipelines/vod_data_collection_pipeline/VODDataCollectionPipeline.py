@@ -4,7 +4,7 @@ import time
 from loguru import logger
 
 from src.common.ChzzkDBHandler import ChzzkDBHandler
-from src.common.config import load_db_config, load_file_manager_config
+from src.common.config import load_file_manager_config
 from src.common.FileManager import FileManager
 from src.pipelines.vod_data_collection_pipeline.ChzzkChatCrawler import ChzzkChatCrawler
 from src.pipelines.vod_data_collection_pipeline.ChzzkChatProcessor import ChzzkChatProcessor
@@ -22,13 +22,13 @@ class VODDataCollectionPipeline:
     between different components like crawlers, processors, and storage handlers.
 
     The pipeline follows these main steps:
-    0. Collecting video data is now done on handmade because of not available on CHZZK API
-    1. store video data in the database
-    2. Crawl chat data for each video
-    3. Process and store the chat data
+    1. Collect video data manually (as CHZZK API is not available)
+    2. Store video data in the database
+    3. Crawl chat data for each video
+    4. Process and store the chat data
     """
 
-    def __init__(self, config: VODDataCollectionPipelineConfig):
+    def __init__(self, config: VODDataCollectionPipelineConfig, db_handler: ChzzkDBHandler):
         """Initialize the VODDataCollectionPipeline with configuration.
 
         Args:
@@ -37,7 +37,7 @@ class VODDataCollectionPipeline:
         """
         self.crawler = ChzzkChatCrawler(config.chat_api_config)
         self.processor = ChzzkChatProcessor(config.chat_processor_config)
-        self.db_handler = ChzzkDBHandler(load_db_config())
+        self.db_handler = db_handler
         self.video_processor = ChzzkVideoProcessor()
 
     def store_video_logs(self, streamer_idx: int):
@@ -59,7 +59,7 @@ class VODDataCollectionPipeline:
             logger.info(f"No video data found for streamer {streamer_idx}")
             return
 
-        stored_video_ids = self.db_handler.get_existing_video_data_video_ids(streamer_idx)
+        stored_video_ids = self.db_handler.get_video_ids(streamer_idx)
 
         video_logs = []
         for path in video_data_paths:
@@ -68,7 +68,7 @@ class VODDataCollectionPipeline:
                 video_logs.append(video_log)
 
         if video_logs:
-            self.db_handler.insert_video_data_bulk(streamer_idx, video_logs)
+            self.db_handler.insert_video_data_bulk(video_logs)
             logger.info(f"Stored {len(video_logs)} new video logs for streamer {streamer_idx}")
 
     def _crawl_chat_data_for_video(
@@ -130,8 +130,15 @@ class VODDataCollectionPipeline:
             - Existing chat data files are preserved and not overwritten
         """
         file_manager = FileManager(load_file_manager_config(), streamer_idx)
-        stored_video_ids = self.db_handler.get_existing_video_data_video_ids(streamer_idx)
+        stored_video_ids = self.db_handler.get_video_ids(streamer_idx)
         existing_chat_data_video_ids = file_manager.get_existing_chat_data_video_ids()
+        processed_chats_video_ids = self.db_handler.get_video_ids(streamer_idx, has_chat_data=True)
+
+        # Calculate videos that need processing
+        video_ids_to_process = (
+            existing_chat_data_video_ids  # Have chat data files
+            & (stored_video_ids - processed_chats_video_ids)  # Not yet processed
+        )
 
         total_videos = len(stored_video_ids)
         processed_videos = 0
@@ -139,12 +146,8 @@ class VODDataCollectionPipeline:
 
         logger.info(f"Starting chat data crawl for {total_videos} videos of streamer {streamer_idx}")
 
-        for video_id in stored_video_ids:
+        for video_id in video_ids_to_process:
             processed_videos += 1
-            if video_id in existing_chat_data_video_ids:
-                logger.info(f"Skipping video_id {video_id} (already exists) [{processed_videos}/{total_videos}]")
-                continue
-
             logger.info(f"Crawling chat data for video_id {video_id} [{processed_videos}/{total_videos}]")
             if self._crawl_chat_data_for_video(video_id, file_manager):
                 successful_crawls += 1
@@ -155,9 +158,53 @@ class VODDataCollectionPipeline:
             f"Successfully processed {successful_crawls}/{total_videos} videos"
         )
 
+    def _store_chat_logs_for_video(
+        self, video_id: int, streamer_idx: int, file_manager: FileManager, batch_size: int = 1000
+    ):
+        """Store chat logs for a single video.
+
+        Args:
+            video_id (int): ID of the video to store chat logs for
+            streamer_idx (int): Streamer index for searching safely video_idx
+            file_manager (FileManager): file_manager instance for the streamer
+            batch_size (int, optional): batch size for storing chat logs. Defaults to 1000.
+        """
+        video_idx = self.db_handler.get_video_idx(video_id, streamer_idx)
+        for chats in file_manager.load_chats_from_jsonl_batch(video_id, batch_size):
+            chat_logs = self.processor.extract_chat_logs(chats, video_idx)
+            self.db_handler.insert_chat_data_bulk(chat_logs)
+        logger.info(f"✅ Successfully stored chat logs for video_id, video_idx: {video_id}, {video_idx}")
+
     def store_chat_logs(self, streamer_idx: int):
-        # 이미 저장된 chats는 db에 저장하지 않도록 해야함
-        # streamer_idx를 갖는 videos db의 video_id를 확인
-        # chats폴더에 해당 video_id를 갖는 Chats이 있는지 확인
-        # 없으면 chat_log를 추출하여 db에 저장
-        pass
+        """Store chat logs for videos that need processing.
+
+        This method:
+        1. Gets video_id set of videos from database
+        2. Gets video_id set of videos with chat data files
+        3. Gets video_id set of videos with processed chats in db
+        4. Processes and stores chat data for videos that:
+           - Exist in database
+           - Have chat data files
+           - Don't have processed chats
+
+        Args:
+            streamer_idx (int): Streamer index to process chats for
+        """
+        file_manager = FileManager(load_file_manager_config(), streamer_idx)
+        stored_video_ids = self.db_handler.get_video_ids(streamer_idx, has_chat_data=False)
+        existing_chat_data_video_ids = file_manager.get_existing_chat_data_video_ids()
+        processed_chats_video_ids = self.db_handler.get_video_ids(streamer_idx, has_chat_data=True)
+
+        # Calculate videos that need processing
+        video_ids_to_process = (
+            existing_chat_data_video_ids  # Have chat data files
+            & (stored_video_ids - processed_chats_video_ids)  # Not yet processed
+        )
+
+        if not video_ids_to_process:
+            logger.info(f"No videos need chat processing for streamer {streamer_idx}")
+            return
+
+        logger.info(f"Processing chat data for {len(video_ids_to_process)} videos")
+        for video_id in video_ids_to_process:
+            self._store_chat_logs_for_video(video_id, streamer_idx, file_manager)
