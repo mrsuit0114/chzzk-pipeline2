@@ -19,7 +19,7 @@ class FileManager:
             streamer_idx (int): Index of the streamer to manage files for
         """
         self.config = config
-        self._paths = config.get_paths(streamer_idx)
+        self._data_paths = config.get_data_paths(streamer_idx)
 
         self._verify_and_create_pahts()
 
@@ -34,7 +34,7 @@ class FileManager:
         Raises:
             Exception: If directory creation fails
         """
-        for path in self._paths.__dict__.values():
+        for path in self._data_paths.__dict__.values():
             path_obj = Path(path)
             if not path_obj.exists():
                 try:
@@ -46,6 +46,14 @@ class FileManager:
             else:
                 logger.info(f"directory exist: {path_obj}")
 
+    def extract_video_id_from_path(self, path: Path) -> int:
+        """Extract video ID from path.
+
+        Args:
+            path (Path): Path to the video file
+        """
+        return int(path.stem.split("_")[-1])
+
     def _get_chat_file_path(self, video_id: int) -> Path:
         """Get path for chat file.
 
@@ -55,7 +63,7 @@ class FileManager:
         Returns:
             Path: Path to the chat file
         """
-        return self._paths.chat_data_dir / self.config.CHAT_FILE_FORMAT.format(video_id=video_id)
+        return self._data_paths.chat_data_dir / self.config.CHAT_FILE_FORMAT.format(video_id=video_id)
 
     def append_chats_to_jsonl(self, chats: list[dict[str, Any]], video_id: int):
         """Append chats to jsonl file for video_id
@@ -106,41 +114,38 @@ class FileManager:
             logger.error(f"Error loading chats from jsonl file: {e}")
             raise e
 
-    def get_existing_video_data_paths(self) -> set[Path]:
-        """Get paths of all existing video files.
+    def get_video_data_paths(self) -> set[Path]:
+        """Get paths of all video files.
 
         Returns:
-            set[Path]: Set of existing video file paths
+            set[Path]: Set of video file paths
         """
         try:
-            return set(self._paths.video_data_dir.glob("*.mp4"))
+            return set(self._data_paths.video_data_dir.glob("*.mp4"))
         except Exception as e:
-            logger.error(f"Error getting existing video data paths: {e}")
+            logger.error(f"Error getting video data paths: {e}")
             raise e
 
-    def get_existing_chat_data_paths(self) -> set[Path]:
-        """Get paths of all existing chat data files.
+    def get_chat_data_paths(self) -> set[Path]:
+        """Get paths of all chat data files.
 
         Returns:
-            set[Path]: Set of existing chat data file paths
+            set[Path]: Set of chat data file paths
         """
         try:
-            return set(self._paths.chat_data_dir.glob("*.jsonl"))
+            return set(self._data_paths.chat_data_dir.glob("*.jsonl"))
         except Exception as e:
-            logger.error(f"Error getting existing chat data paths: {e}")
+            logger.error(f"Error getting chat data paths: {e}")
             raise e
 
-    def get_existing_chat_data_video_ids(self) -> set[int]:
-        """Get video IDs from existing chat data files.
+    def get_audio_data_paths(self) -> set[Path]:
+        """Get paths of all audio files.
 
         Returns:
-            set[int]: Set of video IDs that have chat data files
+            set[Path]: Set of audio file paths (mp3, wav)
         """
         try:
-            return {
-                int(path.stem.split("_")[-1])  # Extract video_id from "chats_{video_id}.jsonl"
-                for path in self.get_existing_chat_data_paths()
-            }
-        except (ValueError, IndexError) as e:
-            logger.error(f"Error extracting video IDs from chat data paths: {e}")
-            raise ValueError("Invalid chat data file name format") from e
+            return set(self._data_paths.audio_data_dir.glob("*.mp3|*.wav"))
+        except Exception as e:
+            logger.error(f"Error getting audio data paths: {e}")
+            raise e
