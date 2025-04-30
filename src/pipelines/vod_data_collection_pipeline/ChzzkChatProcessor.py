@@ -71,7 +71,7 @@ class ChzzkChatProcessor:
 
         return {
             "content": content,
-            "player_msg_time": player_msg_time,
+            "timestamp": player_msg_time,
             "user_id_hash": user_id_hash,
             "pay_amount": pay_amount,
             "os_type": os_type,

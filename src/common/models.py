@@ -28,7 +28,7 @@ class VideoChatData:
 class ChatLog:
     video_idx: int
     content: str
-    player_msg_time: int
+    timestamp: int
     user_id_hash: str
     pay_amount: int
     os_type: str
@@ -36,7 +36,7 @@ class ChatLog:
     def __init__(self, chat: dict[str, Any], video_idx: int):
         self.video_idx = video_idx
         self.content = chat["content"]
-        self.player_msg_time = chat["player_msg_time"]
+        self.timestamp = chat["timestamp"]
         self.user_id_hash = chat["user_id_hash"]
         self.pay_amount = chat["pay_amount"]
         self.os_type = chat["os_type"]

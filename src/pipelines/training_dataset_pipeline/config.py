@@ -5,7 +5,7 @@ from dataclasses import dataclass
 class MediaMetadata:
     video_id: int
     category: str | None
-    date: int | None
+    created_at: int | None
 
 
 @dataclass(frozen=True)

@@ -148,8 +148,8 @@ class ChzzkDBHandler:
             RuntimeError: If database connection cannot be established
         """
         query = """
-        INSERT INTO chats (video_idx, chat_text, chat_time, user_id_hash, pay_amount, os_type)
-        VALUES (%(video_idx)s, %(chat_text)s, %(chat_time)s, %(user_id_hash)s, %(pay_amount)s, %(os_type)s)
+        INSERT INTO chats (video_idx, content, timestamp, user_id_hash, pay_amount, os_type)
+        VALUES (%(video_idx)s, %(content)s, %(timestamp)s, %(user_id_hash)s, %(pay_amount)s, %(os_type)s)
         """
 
         insert_values = [chat.__dict__ for chat in chat_data_list]

@@ -1,5 +1,6 @@
 import random
 import time
+from datetime import datetime
 from typing import Optional
 
 from loguru import logger
@@ -63,9 +64,8 @@ class VODDataCollectionPipeline:
         Args:
             streamer_idx (int): Streamer index to process videos for
         """
-        file_manager = self.file_manager
 
-        video_data_paths = file_manager.get_video_data_paths()
+        video_data_paths = self.file_manager.get_video_data_paths()
         if not video_data_paths:
             logger.info(f"No video data found for streamer {streamer_idx}")
             return
@@ -74,9 +74,15 @@ class VODDataCollectionPipeline:
         video_logs = []
 
         for path in video_data_paths:
-            media_metadata = file_manager.extract_metadata_from_path(path)
+            media_metadata = self.file_manager.extract_metadata_from_path(path)
             if media_metadata.video_id not in stored_video_ids:
-                video_log = VideoLog(streamer_idx=streamer_idx, video_url=str(path), **media_metadata.__dict__)
+                video_log = VideoLog(
+                    streamer_idx=streamer_idx,
+                    video_url=str(path),
+                    video_id=media_metadata.video_id,
+                    category=media_metadata.category or "",
+                    created_at=datetime.strptime(str(media_metadata.created_at), "%Y%m%d"),
+                )
                 video_logs.append(video_log)
 
         if video_logs:
@@ -93,7 +99,6 @@ class VODDataCollectionPipeline:
         Returns:
             bool: True if crawling was successful, False otherwise
         """
-        file_manager = self.file_manager
 
         next_player_message_time = 0
         retry_count = 0
@@ -111,7 +116,7 @@ class VODDataCollectionPipeline:
                     return False
 
                 video_chats, next_player_message_time = self.processor.parse_video_chats(data)
-                file_manager.append_chats_to_jsonl(video_chats, video_id)
+                self.file_manager.append_chats_to_jsonl(video_chats, video_id)
                 retry_count = 0  # Reset retry count on success
                 time.sleep(base_sleep_time * random.uniform(0.5, 1.5))
             except Exception as e:
@@ -140,22 +145,21 @@ class VODDataCollectionPipeline:
             - Failed crawls are logged but don't stop the overall process
             - chat data files are preserved and not overwritten
         """
-        file_manager = self.file_manager
         stored_video_ids = self.db_handler.get_video_ids(streamer_idx)
         chat_data_video_ids = {
-            file_manager.extract_metadata_from_path(path).video_id for path in file_manager.get_chat_data_paths()
+            self.file_manager.extract_metadata_from_path(path).video_id
+            for path in self.file_manager.get_chat_data_paths()
         }
 
         video_ids_to_process = stored_video_ids - chat_data_video_ids
-        total_videos = len(stored_video_ids)
-        logger.info(f"Starting chat data crawl for {total_videos} videos of streamer {streamer_idx}")
+        logger.info(f"Starting chat data crawl for {video_ids_to_process} videos of streamer {streamer_idx}")
 
         processed_videos = 0
         successful_crawls = 0
 
         for video_id in video_ids_to_process:
             processed_videos += 1
-            logger.info(f"Crawling chat data for video_id {video_id} [{processed_videos}/{total_videos}]")
+            logger.info(f"Crawling chat data for video_id {video_id} [{processed_videos}/{len(video_ids_to_process)}]")
             if self._crawl_chat_data_for_video(video_id):
                 successful_crawls += 1
                 logger.info(f"✅ Successfully crawled chat data for video_id: {video_id}")
@@ -164,7 +168,7 @@ class VODDataCollectionPipeline:
 
         logger.info(
             f"Chat data crawl completed for streamer {streamer_idx}. "
-            f"Successfully processed {successful_crawls}/{total_videos} videos"
+            f"Successfully processed {successful_crawls}/{len(video_ids_to_process)} videos"
         )
 
     def _store_chat_logs_for_video(self, video_id: int, streamer_idx: int, batch_size: int = 1000):
@@ -175,10 +179,8 @@ class VODDataCollectionPipeline:
             streamer_idx (int): Streamer index for searching safely video_idx
             batch_size (int, optional): batch size for storing chat logs. Defaults to 1000.
         """
-        file_manager = self.file_manager
-
         video_idx = self.db_handler.get_video_idx(video_id, streamer_idx)
-        for chats in file_manager.load_chats_from_jsonl_batch(video_id, batch_size):
+        for chats in self.file_manager.load_chats_from_jsonl_batch(video_id, batch_size):
             chat_logs = self.processor.extract_chat_logs(chats, video_idx)
             self.db_handler.insert_chat_data_bulk(chat_logs)
         logger.info(f"✅ Successfully stored chat logs for video_id, video_idx: {video_id}, {video_idx}")
@@ -198,10 +200,10 @@ class VODDataCollectionPipeline:
         Args:
             streamer_idx (int): Streamer index to process chats for
         """
-        file_manager = self.file_manager
         stored_video_ids = self.db_handler.get_video_ids(streamer_idx, has_chat_data=False)
         chat_data_video_ids = {
-            file_manager.extract_metadata_from_path(path).video_id for path in file_manager.get_chat_data_paths()
+            self.file_manager.extract_metadata_from_path(path).video_id
+            for path in self.file_manager.get_chat_data_paths()
         }
         processed_chats_video_ids = self.db_handler.get_video_ids(streamer_idx, has_chat_data=True)
 
@@ -220,6 +222,7 @@ class VODDataCollectionPipeline:
             self._store_chat_logs_for_video(video_id, streamer_idx)
 
     def run(self, streamer_idx: int):
+        self.file_manager = streamer_idx
         self.store_video_logs(streamer_idx)
         self.crawl_chat_data(streamer_idx)
         self.store_chat_logs(streamer_idx)

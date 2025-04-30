@@ -72,9 +72,9 @@ class FileManager:
         """
         file_path = self._get_chat_file_path(video_id)
         try:
-            with open(file_path, "a") as f:
+            with open(file_path, "a", encoding="utf-8") as f:
                 for chat in chats:
-                    f.write(json.dumps(chat) + "\n")
+                    f.write(json.dumps(chat, ensure_ascii=False) + "\n")
         except Exception as e:
             logger.error(f"Error appending chats to jsonl file: {e}")
             raise e
@@ -96,7 +96,7 @@ class FileManager:
         """
         file_path = self._get_chat_file_path(video_id)
         try:
-            with open(file_path) as f:
+            with open(file_path, encoding="utf-8") as f:
                 batch = []
                 for line in f:
                     batch.append(json.loads(line))
@@ -154,18 +154,18 @@ class FileManager:
                 - Chat: (video_id).jsonl
 
         Returns:
-            MediaMetadata: Extracted metadata including video_id, category, date
-            - Chat: video_id, category=None, date=None
+            MediaMetadata: Extracted metadata including video_id, category, created_at
+            - Chat: video_id, category=None, created_at=None
         """
         if path.suffix == ".jsonl":
             video_id = int(path.stem.split("_")[-1])
-            return MediaMetadata(video_id=video_id, category=None, date=None)
+            return MediaMetadata(video_id=video_id, category=None, created_at=None)
 
         parts = path.stem.split("_")
         video_id = int(parts[-1])
-        date = int(parts[0])
+        created_at = int(parts[0])
         category = "_".join(parts[1:-1])
-        return MediaMetadata(video_id=video_id, category=category, date=date)
+        return MediaMetadata(video_id=video_id, category=category, created_at=created_at)
 
     def save_audio_data(self, audio_data: np.ndarray, media_metadata: MediaMetadata, target_sr: int):
         """Save audio data to file.

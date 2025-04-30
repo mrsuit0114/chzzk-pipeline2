@@ -23,8 +23,8 @@ class FileManagerConfig:
     AUDIOS_DIR_NAME: str = "audios"
     # File name formats
     CHAT_FILE_FORMAT: str = "chats_{video_id}.jsonl"
-    VIDEO_FILE_FORMAT: str = "{data}_{category}_{video_id}.mp4"
-    AUDIO_FILE_FORMAT: str = "{date}_{category}_{video_id}.mp3"
+    VIDEO_FILE_FORMAT: str = "{created_at}_{category}_{video_id}.mp4"
+    AUDIO_FILE_FORMAT: str = "{created_at}_{category}_{video_id}.mp3"
 
     def get_data_paths(self, streamer_idx: int) -> StreamerPaths:
         raw_data_dir = self.base_dir / self.DATA_ROOT_DIR_NAME / self.RAW_DATA_DIR_NAME
