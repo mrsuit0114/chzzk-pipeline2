@@ -5,13 +5,12 @@ from typing import Optional
 from loguru import logger
 
 from src.common.ChzzkDBHandler import ChzzkDBHandler
+from src.common.config import load_file_manager_config
 from src.common.FileManager import FileManager
+from src.common.models import VideoLog
 from src.pipelines.vod_data_collection_pipeline.ChzzkChatCrawler import ChzzkChatCrawler
 from src.pipelines.vod_data_collection_pipeline.ChzzkChatProcessor import ChzzkChatProcessor
-from src.pipelines.vod_data_collection_pipeline.ChzzkVideoProcessor import ChzzkVideoProcessor
-from src.pipelines.vod_data_collection_pipeline.config import (
-    VODDataCollectionPipelineConfig,
-)
+from src.pipelines.vod_data_collection_pipeline.config import VODDataCollectionPipelineConfig
 
 
 class VODDataCollectionPipeline:
@@ -38,19 +37,19 @@ class VODDataCollectionPipeline:
         self.crawler = ChzzkChatCrawler(config.chat_api_config)
         self.processor = ChzzkChatProcessor(config.chat_processor_config)
         self.db_handler = db_handler
-        self.video_processor = ChzzkVideoProcessor()
-        self.file_manager: Optional[FileManager] = None
+        self._file_manager: Optional[FileManager] = None
 
-    def set_file_manager(self, file_manager: FileManager):
-        self.file_manager = file_manager
-
-    def _get_file_manager(self):
-        if self.file_manager is None:
+    @property
+    def file_manager(self) -> FileManager:
+        if self._file_manager is None:
             error_msg = "File manager is not set. Call set_file_manager() before using pipeline methods."
             logger.error(error_msg)
             raise ValueError(error_msg)
-        else:
-            return self.file_manager
+        return self._file_manager
+
+    @file_manager.setter
+    def file_manager(self, streamer_idx: int):
+        self._file_manager = FileManager(load_file_manager_config(), streamer_idx)
 
     def store_video_logs(self, streamer_idx: int):
         """Store video logs to database for unprocessed videos.
@@ -64,7 +63,7 @@ class VODDataCollectionPipeline:
         Args:
             streamer_idx (int): Streamer index to process videos for
         """
-        file_manager = self._get_file_manager()
+        file_manager = self.file_manager
 
         video_data_paths = file_manager.get_video_data_paths()
         if not video_data_paths:
@@ -72,12 +71,12 @@ class VODDataCollectionPipeline:
             return
 
         stored_video_ids = self.db_handler.get_video_ids(streamer_idx)
-
         video_logs = []
+
         for path in video_data_paths:
-            video_id = file_manager.extract_video_id_from_path(path)
-            if video_id not in stored_video_ids:
-                video_log = self.video_processor.process(path, streamer_idx)
+            media_metadata = file_manager.extract_metadata_from_path(path)
+            if media_metadata.video_id not in stored_video_ids:
+                video_log = VideoLog(streamer_idx=streamer_idx, video_url=str(path), **media_metadata.__dict__)
                 video_logs.append(video_log)
 
         if video_logs:
@@ -94,7 +93,7 @@ class VODDataCollectionPipeline:
         Returns:
             bool: True if crawling was successful, False otherwise
         """
-        file_manager = self._get_file_manager()
+        file_manager = self.file_manager
 
         next_player_message_time = 0
         retry_count = 0
@@ -141,10 +140,10 @@ class VODDataCollectionPipeline:
             - Failed crawls are logged but don't stop the overall process
             - chat data files are preserved and not overwritten
         """
-        file_manager = self._get_file_manager()
+        file_manager = self.file_manager
         stored_video_ids = self.db_handler.get_video_ids(streamer_idx)
         chat_data_video_ids = {
-            file_manager.extract_video_id_from_path(path) for path in file_manager.get_chat_data_paths()
+            file_manager.extract_metadata_from_path(path).video_id for path in file_manager.get_chat_data_paths()
         }
 
         video_ids_to_process = stored_video_ids - chat_data_video_ids
@@ -176,7 +175,7 @@ class VODDataCollectionPipeline:
             streamer_idx (int): Streamer index for searching safely video_idx
             batch_size (int, optional): batch size for storing chat logs. Defaults to 1000.
         """
-        file_manager = self._get_file_manager()
+        file_manager = self.file_manager
 
         video_idx = self.db_handler.get_video_idx(video_id, streamer_idx)
         for chats in file_manager.load_chats_from_jsonl_batch(video_id, batch_size):
@@ -199,10 +198,10 @@ class VODDataCollectionPipeline:
         Args:
             streamer_idx (int): Streamer index to process chats for
         """
-        file_manager = self._get_file_manager()
+        file_manager = self.file_manager
         stored_video_ids = self.db_handler.get_video_ids(streamer_idx, has_chat_data=False)
         chat_data_video_ids = {
-            file_manager.extract_video_id_from_path(path) for path in file_manager.get_chat_data_paths()
+            file_manager.extract_metadata_from_path(path).video_id for path in file_manager.get_chat_data_paths()
         }
         processed_chats_video_ids = self.db_handler.get_video_ids(streamer_idx, has_chat_data=True)
 
