@@ -5,3 +5,14 @@ channels:
   - https://repo.anaconda.com/pkgs/r
 dependencies:
   - python=3.11
+  - requests
+  - loguru
+  - python-dotenv
+  - ruff
+  - pre-commit
+  - psycopg2
+  - librosa
+  - ffmpeg
+  - ffmpeg-python
+  - numpy
+  - pysoundfile
