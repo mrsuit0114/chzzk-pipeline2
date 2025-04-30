@@ -126,7 +126,7 @@ class ChzzkDBHandler:
         VALUES (%(streamer_idx)s, %(video_id)s, %(category)s, %(created_at)s, %(video_url)s)
         """
 
-        insert_values = [video.to_dict() for video in video_data_list]
+        insert_values = [video.__dict__ for video in video_data_list]
         try:
             self._execute_query(query, insert_values, commit=True)
         except Exception as e:
@@ -152,7 +152,7 @@ class ChzzkDBHandler:
         VALUES (%(video_idx)s, %(chat_text)s, %(chat_time)s, %(user_id_hash)s, %(pay_amount)s, %(os_type)s)
         """
 
-        insert_values = [chat.to_dict() for chat in chat_data_list]
+        insert_values = [chat.__dict__ for chat in chat_data_list]
 
         self._execute_query(query, insert_values, commit=True)
 

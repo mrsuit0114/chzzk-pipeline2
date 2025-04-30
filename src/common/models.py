@@ -41,16 +41,6 @@ class ChatLog:
         self.pay_amount = chat["pay_amount"]
         self.os_type = chat["os_type"]
 
-    def to_dict(self):
-        return {
-            "video_idx": self.video_idx,
-            "chat_text": self.content,
-            "chat_time": self.player_msg_time,
-            "user_id_hash": self.user_id_hash,
-            "pay_amount": self.pay_amount,
-            "os_type": self.os_type,
-        }
-
 
 @dataclass
 class VideoLog:
@@ -59,12 +49,3 @@ class VideoLog:
     category: str
     created_at: datetime
     video_url: str
-
-    def to_dict(self):
-        return {
-            "streamer_idx": self.streamer_idx,
-            "video_id": self.video_id,
-            "category": self.category,
-            "created_at": self.created_at,
-            "video_url": self.video_url,
-        }
