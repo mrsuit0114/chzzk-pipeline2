@@ -14,25 +14,27 @@ class StreamerPaths:
 @dataclass(frozen=True)
 class FileManagerConfig:
     base_dir: Path
+    DATA_ROOT_DIR_NAME: str = "data"
+    RAW_DATA_DIR_NAME: str = "raw"
     CHATS_DIR_NAME: str = "chats"
+    VIDEOS_DIR_NAME: str = "videos"
+    PROCESSED_DATA_DIR_NAME: str = "processed"
     CHAT_CONTENTS_DIR_NAME: str = "chatcontents"
     AUDIOS_DIR_NAME: str = "audios"
-    DATA_ROOT_DIR_NAME: str = "data"
-    VIDEOS_DIR_NAME: str = "videos"
-
     # File name formats
     CHAT_FILE_FORMAT: str = "chats_{video_id}.jsonl"
     VIDEO_FILE_FORMAT: str = "{data}_{category}_{video_id}.mp4"
     AUDIO_FILE_FORMAT: str = "{date}_{category}_{video_id}.mp3"
 
-    def get_paths(self, streamer_idx: int) -> StreamerPaths:
-        data_root = self.base_dir / self.DATA_ROOT_DIR_NAME
+    def get_data_paths(self, streamer_idx: int) -> StreamerPaths:
+        raw_data_dir = self.base_dir / self.DATA_ROOT_DIR_NAME / self.RAW_DATA_DIR_NAME
+        processed_data_dir = self.base_dir / self.DATA_ROOT_DIR_NAME / self.PROCESSED_DATA_DIR_NAME
         streamer_idx_str = str(streamer_idx)
         return StreamerPaths(
-            chat_data_dir=data_root / streamer_idx_str / self.CHATS_DIR_NAME,
-            chat_content_only_dir=data_root / streamer_idx_str / self.CHAT_CONTENTS_DIR_NAME,
-            audio_data_dir=data_root / streamer_idx_str / self.AUDIOS_DIR_NAME,
-            video_data_dir=data_root / streamer_idx_str / self.VIDEOS_DIR_NAME,
+            chat_data_dir=raw_data_dir / streamer_idx_str / self.CHATS_DIR_NAME,
+            video_data_dir=raw_data_dir / streamer_idx_str / self.VIDEOS_DIR_NAME,
+            audio_data_dir=processed_data_dir / streamer_idx_str / self.AUDIOS_DIR_NAME,
+            chat_content_only_dir=processed_data_dir / streamer_idx_str / self.CHAT_CONTENTS_DIR_NAME,
         )
 
 

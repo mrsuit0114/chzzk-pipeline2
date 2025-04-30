@@ -11,3 +11,8 @@ dependencies:
   - ruff
   - pre-commit
   - psycopg2
+  - librosa
+  - ffmpeg
+  - ffmpeg-python
+  - numpy
+  - pysoundfile

@@ -4,9 +4,12 @@ import json
 from pathlib import Path
 from typing import Any, Generator
 
+import numpy as np
+import soundfile as sf
 from loguru import logger
 
 from src.common.config import FileManagerConfig
+from src.pipelines.training_dataset_pipeline.config import MediaMetadata
 
 
 class FileManager:
@@ -45,14 +48,6 @@ class FileManager:
                     raise e
             else:
                 logger.info(f"directory exist: {path_obj}")
-
-    def extract_video_id_from_path(self, path: Path) -> int:
-        """Extract video ID from path.
-
-        Args:
-            path (Path): Path to the video file
-        """
-        return int(path.stem.split("_")[-1])
 
     def _get_chat_file_path(self, video_id: int) -> Path:
         """Get path for chat file.
@@ -145,7 +140,48 @@ class FileManager:
             set[Path]: Set of audio file paths (mp3, wav)
         """
         try:
-            return set(self._data_paths.audio_data_dir.glob("*.mp3|*.wav"))
+            return set(self._data_paths.audio_data_dir.glob("*.mp3"))
         except Exception as e:
             logger.error(f"Error getting audio data paths: {e}")
+            raise e
+
+    def extract_metadata_from_path(self, path: Path) -> MediaMetadata:
+        """Extract metadata from any media file path.
+
+        Args:
+            path (Path): Path to media file
+                - Video/Audio: (yyyyMMdd)_(category)_(video_id).mp4
+                - Chat: (video_id).jsonl
+
+        Returns:
+            MediaMetadata: Extracted metadata including video_id, category, date
+            - Chat: video_id, category=None, date=None
+        """
+        if path.suffix == ".jsonl":
+            video_id = int(path.stem.split("_")[-1])
+            return MediaMetadata(video_id=video_id, category=None, date=None)
+
+        parts = path.stem.split("_")
+        video_id = int(parts[-1])
+        date = int(parts[0])
+        category = "_".join(parts[1:-1])
+        return MediaMetadata(video_id=video_id, category=category, date=date)
+
+    def save_audio_data(self, audio_data: np.ndarray, media_metadata: MediaMetadata, target_sr: int):
+        """Save audio data to file.
+
+        Args:
+            audio_data (np.ndarray): audio data
+            media_metadata (MediaMetadata): metadata of audio file used for file name
+            target_sr (int): sample rate of audio data
+
+        Raises:
+            e: If there's an error saving the audio data
+        """
+        audio_path = self._data_paths.audio_data_dir / self.config.AUDIO_FILE_FORMAT.format(**media_metadata.__dict__)
+        try:
+            sf.write(audio_path, audio_data, target_sr)
+            logger.info(f"Audio data saved to {audio_path}")
+        except Exception as e:
+            logger.error(f"Error saving audio data: {e}")
             raise e
