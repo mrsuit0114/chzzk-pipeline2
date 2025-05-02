@@ -9,13 +9,14 @@ from pathlib import Path
 
 import librosa
 import numpy as np
+from loguru import logger
 
-from src.pipelines.training_dataset_pipeline.config import AudioProcessorConfig
+from src.pipelines.training_dataset_pipeline.config import AudioConfig
 
 
 class AudioProcessor:
-    def __init__(self, audio_processor_config: AudioProcessorConfig):
-        self.audio_processor_config = audio_processor_config
+    def __init__(self, audio_config: AudioConfig):
+        self.audio_config = audio_config
 
     def _extract_audio(self, video_path: Path):
         """Extract audio from video using ffmpeg.
@@ -85,7 +86,7 @@ class AudioProcessor:
         Returns:
             tuple[np.ndarray, int]: resampled audio data and target sample rate
         """
-        target_sr = self.audio_processor_config.sample_rate
+        target_sr = self.audio_config.sample_rate
         if original_sr == target_sr:
             return audio_data, target_sr
 
@@ -101,7 +102,9 @@ class AudioProcessor:
         Returns:
             tuple[np.ndarray, int]: standardize audio data and sample rate
         """
+        logger.info(f"Extract_and_standardize_audio from video {video_path}")
         audio_data, original_sr = self._extract_audio(video_path)
         audio_data = self._convert_to_mono(audio_data)
         audio_data, target_sr = self._resample(audio_data, original_sr)
+        logger.info(f"Extracted and standardized audio from video {video_path}")
         return audio_data, target_sr

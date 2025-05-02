@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+import torch
+
 
 @dataclass(frozen=True)
 class MediaMetadata:
@@ -9,22 +11,38 @@ class MediaMetadata:
 
 
 @dataclass(frozen=True)
-class AudioProcessorConfig:
-    sample_rate: int
+class AudioConfig:
+    sample_rate: int = 16000
 
 
-def load_audio_processor_config():
-    config = AudioProcessorConfig(sample_rate=16000)
+def load_audio_config():
+    config = AudioConfig()
+    return config
+
+
+@dataclass(frozen=True)
+class VADSegmentExtractorConfig:
+    def load_vad_model(self):
+        model, utils = torch.hub.load(
+            repo_or_dir="snakers4/silero-vad", model="silero_vad", force_reload=False, onnx=False
+        )
+        return model, utils
+
+
+def load_vad_segment_extractor_config():
+    config = VADSegmentExtractorConfig()
     return config
 
 
 @dataclass(frozen=True)
 class TrainingDatasetPipelineConfig:
-    audio_processor_config: AudioProcessorConfig
+    audio_config: AudioConfig
+    vad_segment_extractor_config: VADSegmentExtractorConfig
 
 
 def load_training_dataset_pipeline_config():
     config = TrainingDatasetPipelineConfig(
-        audio_processor_config=load_audio_processor_config(),
+        audio_config=load_audio_config(),
+        vad_segment_extractor_config=load_vad_segment_extractor_config(),
     )
     return config

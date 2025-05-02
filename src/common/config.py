@@ -9,6 +9,7 @@ class StreamerPaths:
     chat_content_only_dir: Path
     audio_data_dir: Path
     video_data_dir: Path
+    vad_segments_dir: Path
 
 
 @dataclass(frozen=True)
@@ -21,10 +22,12 @@ class FileManagerConfig:
     PROCESSED_DATA_DIR_NAME: str = "processed"
     CHAT_CONTENTS_DIR_NAME: str = "chatcontents"
     AUDIOS_DIR_NAME: str = "audios"
+    VAD_SEGMENTS_DIR_NAME: str = "vad_segments"
     # File name formats
     CHAT_FILE_FORMAT: str = "chats_{video_id}.jsonl"
     VIDEO_FILE_FORMAT: str = "{created_at}_{category}_{video_id}.mp4"
     AUDIO_FILE_FORMAT: str = "{created_at}_{category}_{video_id}.mp3"
+    VAD_SEGMENTS_FILE_FORMAT: str = "{created_at}_{category}_{video_id}.json"
 
     def get_data_paths(self, streamer_idx: int) -> StreamerPaths:
         raw_data_dir = self.base_dir / self.DATA_ROOT_DIR_NAME / self.RAW_DATA_DIR_NAME
@@ -35,6 +38,7 @@ class FileManagerConfig:
             video_data_dir=raw_data_dir / streamer_idx_str / self.VIDEOS_DIR_NAME,
             audio_data_dir=processed_data_dir / streamer_idx_str / self.AUDIOS_DIR_NAME,
             chat_content_only_dir=processed_data_dir / streamer_idx_str / self.CHAT_CONTENTS_DIR_NAME,
+            vad_segments_dir=processed_data_dir / streamer_idx_str / self.VAD_SEGMENTS_DIR_NAME,
         )
 
 

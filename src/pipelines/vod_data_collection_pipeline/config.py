@@ -34,19 +34,14 @@ def load_chat_api_config():
 
 @dataclass(frozen=True)
 class ChzzkChatProcessorConfig:
-    message_type_chat_code: int
-    message_type_donation_code: int
-    message_status_normal_type: str
-    donation_type: str
+    message_type_chat_code: int = 1
+    message_type_donation_code: int = 10
+    message_status_normal_type: str = "NORMAL"
+    donation_type: str = "CHAT"
 
 
 def load_chzzk_chat_processor_config():
-    config = ChzzkChatProcessorConfig(
-        message_type_chat_code=1,
-        message_type_donation_code=10,
-        message_status_normal_type="NORMAL",
-        donation_type="CHAT",
-    )
+    config = ChzzkChatProcessorConfig()
     return config
 
 
