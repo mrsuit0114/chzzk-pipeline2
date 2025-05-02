@@ -145,6 +145,18 @@ class FileManager:
             logger.error(f"Error getting audio data paths: {e}")
             raise e
 
+    def get_vad_segments_data_paths(self) -> set[Path]:
+        """Get paths of all vad segments data files.
+
+        Returns:
+            set[Path]: Set of vad segments data file paths
+        """
+        try:
+            return set(self._data_paths.vad_segments_dir.glob("*.json"))
+        except Exception as e:
+            logger.error(f"Error getting vad segments data paths: {e}")
+            raise e
+
     def extract_metadata_from_path(self, path: Path) -> MediaMetadata:
         """Extract metadata from any media file path.
 
@@ -184,4 +196,29 @@ class FileManager:
             logger.info(f"Audio data saved to {audio_path}")
         except Exception as e:
             logger.error(f"Error saving audio data: {e}")
+            raise e
+
+    def save_vad_segments(self, speech_timestamps_ms: list[tuple[int, int]], media_metadata: MediaMetadata):
+        """Save vad segments to file.
+
+        Args:
+            speech_timestamps_ms (list[tuple[int, int]]): list of speech timestamps in milliseconds
+            media_metadata (MediaMetadata): metadata of audio file used for file name
+
+        Raises:
+            e: If there's an error saving the vad segments
+        """
+        vad_segments_path = self._data_paths.vad_segments_dir / self.config.VAD_SEGMENTS_FILE_FORMAT.format(
+            **media_metadata.__dict__
+        )
+        try:
+            with open(vad_segments_path, "w", encoding="utf-8") as f:
+                json.dump(
+                    {"speech_timestamps_ms": speech_timestamps_ms},
+                    f,
+                    ensure_ascii=False,
+                )
+            logger.info(f"VAD segments saved to {vad_segments_path}")
+        except Exception as e:
+            logger.error(f"Error saving vad segments: {e}")
             raise e

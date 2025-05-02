@@ -79,28 +79,22 @@ def main():
     with col2:
         context_seconds = st.number_input("Context (seconds)", min_value=0, max_value=100, value=10, step=5)
     with col3:
-        min_length = st.number_input("Min length (s)", min_value=0.0, max_value=100.0, value=1.0, step=0.5)
+        min_length_ms = st.number_input("Min length (ms)", min_value=0, max_value=5000, value=1000, step=500)
     with col4:
-        max_length = st.number_input("Max length (s)", min_value=0.0, max_value=100.0, value=10.0, step=0.5)
+        max_length_ms = st.number_input("Max length (ms)", min_value=0, max_value=50000, value=10000, step=500)
 
     # Apply button
     if st.button("Apply"):
         # Get merged segments
-        merged_segments = vad_extractor.merge_segments(vad_data["speech_timestamps_ms"], merge_threshold_ms)
-
-        # Filter segments by length
-        filtered_segments = [
-            (start_ms, end_ms)
-            for start_ms, end_ms in merged_segments
-            if min_length <= get_segment_length(start_ms, end_ms) <= max_length
-        ]
-
+        merged_segments = vad_extractor.merge_segments(
+            vad_data["speech_timestamps_ms"], merge_threshold_ms, min_length_ms, max_length_ms
+        )
         # Display audio player
         st.audio(str(audio_file))
 
         # Display segments
-        st.subheader(f"Speech Segments (showing {len(filtered_segments)} of {len(merged_segments)} segments)")
-        for i, (start_ms, end_ms) in enumerate(filtered_segments, 1):
+        st.subheader(f"Speech Segments (showing {len(merged_segments)} segments)")
+        for i, (start_ms, end_ms) in enumerate(merged_segments, 1):
             segment_length = get_segment_length(start_ms, end_ms)
             with st.expander(
                 f"Segment {i}: {format_timestamp(start_ms)} - {format_timestamp(end_ms)} ({segment_length:.1f}s)"

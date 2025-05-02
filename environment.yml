@@ -16,3 +16,6 @@ dependencies:
   - ffmpeg-python
   - numpy
   - pysoundfile
+  - streamlit
+  - torch
+  - torchaudio
