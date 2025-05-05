@@ -20,10 +20,6 @@ class VADSegmentExtractor:
             It fits only silero vad model by provided silero utils.
         """
         self.config = config
-        self.vad_model, self.vad_utils = config.load_vad_model()
-        (self.get_speech_timestamps, self.save_audio, self.read_audio, self.VADIterator, self.collect_chunks) = (
-            self.vad_utils
-        )
 
     def extract_vad_segments_from_audio(self, audio_path: Path, sample_rate: int) -> list[tuple[int, int]]:
         """Extract vad segments from audio.
@@ -35,11 +31,15 @@ class VADSegmentExtractor:
         Returns:
             list[tuple[int, int]]: list of speech timestamps in milliseconds
         """
-        wav = self.read_audio(audio_path, sample_rate)
+
+        vad_model, vad_utils = self.config.load_vad_model()
+        (get_speech_timestamps, _, read_audio, _, _) = vad_utils
+
+        wav = read_audio(audio_path, sample_rate)
         ms_per_sample = 1000 / sample_rate
 
         logger.info(f"Extracting VAD segments from audio {audio_path}")
-        speech_timestamps = self.get_speech_timestamps(wav, self.vad_model, sampling_rate=sample_rate)
+        speech_timestamps = get_speech_timestamps(wav, vad_model, sampling_rate=sample_rate)
         speech_timestamps_ms = [
             (int(ts["start"] * ms_per_sample), int(ts["end"] * ms_per_sample)) for ts in speech_timestamps
         ]
